@@ -14,6 +14,8 @@
     <playwright.version>1.49.0</playwright.version>
     <junit.version>5.10.2</junit.version>
     <groups></groups>
+    <headless>true</headless>
+    <baseUrl>https://www.saucedemo.com</baseUrl>
   </properties>
 
   <dependencies>
