@@ -13,9 +13,16 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <playwright.version>1.49.0</playwright.version>
     <junit.version>5.10.2</junit.version>
+
+    <!-- test run defaults -->
     <groups></groups>
     <headless>true</headless>
     <baseUrl>https://www.saucedemo.com</baseUrl>
+
+    <!-- SonarQube: this project contains only test code -->
+    <sonar.sources>src/test/java</sonar.sources>
+    <sonar.tests></sonar.tests>
+    <sonar.java.binaries>target/test-classes</sonar.java.binaries>
   </properties>
 
   <dependencies>
