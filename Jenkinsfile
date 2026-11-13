@@ -10,6 +10,7 @@ pipeline {
         IMAGE = "192.168.0.108:5000/qa-tests:${BUILD_NUMBER}"
         K8S_JOB_NAME = "playwright-tests-${BUILD_NUMBER}"
         SONAR_URL = "http://sonarqube:9000"
+	KUBECONFIG = "/var/jenkins_home/.kube/config"
         SONAR_KEY = "ai-cloud-native-test-automation"
     }
 
