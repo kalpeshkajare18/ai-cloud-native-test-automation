@@ -16,3 +16,4 @@ Traces are saved in `tests/target/traces/` (open with `mvn exec:java -e -D exec.
 docker build -t qa-tests .
 docker run --rm qa-tests
 ```
+Automatic Jenkins CI trigger test
