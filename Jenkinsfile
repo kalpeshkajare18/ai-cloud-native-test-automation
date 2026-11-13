@@ -7,12 +7,10 @@ pipeline {
     }
 
     environment {
-        IMAGE       = "qa-tests:${env.BUILD_NUMBER}"
-        CONTAINER   = "qa-run-${env.BUILD_NUMBER}"
-        // Docker network created by docker compose in /infra (folder name + _default)
-        NETWORK     = "infra_default"
-        SONAR_URL   = "http://sonarqube:9000"
-        SONAR_KEY   = "ai-cloud-native-test-automation"
+        IMAGE = "192.168.0.108:5000/qa-tests:${BUILD_NUMBER}"
+        K8S_JOB_NAME = "playwright-tests-${BUILD_NUMBER}"
+        SONAR_URL = "http://sonarqube:9000"
+        SONAR_KEY = "ai-cloud-native-test-automation"
     }
 
     stages {
@@ -28,17 +26,44 @@ pipeline {
             }
         }
 
-        stage('Run Playwright tests') {
+        stage('Push image to registry') {
+            steps {
+                sh 'docker push $IMAGE'
+            }
+        }
+
+        stage('Run Playwright tests on Kubernetes') {
             steps {
                 sh '''
-                    set +e
-                    docker run --name $CONTAINER $IMAGE
-                    RC=$?
-                    mkdir -p reports traces
-                    docker cp $CONTAINER:/app/target/surefire-reports/. reports/
-                    docker cp $CONTAINER:/app/target/traces/. traces/
-                    docker rm $CONTAINER
-                    exit $RC
+                    cat > playwright-job.yaml <<EOF
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ${K8S_JOB_NAME}
+  namespace: qa-automation
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: playwright-tests
+          image: ${IMAGE}
+          imagePullPolicy: Always
+EOF
+
+                    kubectl apply -f playwright-job.yaml
+
+                    kubectl wait --for=condition=complete job/${K8S_JOB_NAME} \
+                        -n qa-automation --timeout=10m
+                '''
+            }
+        }
+
+        stage('Collect Kubernetes test logs') {
+            steps {
+                sh '''
+                    kubectl logs job/${K8S_JOB_NAME} -n qa-automation
                 '''
             }
         }
@@ -47,7 +72,9 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                     sh '''
-                        docker run --rm --network $NETWORK -e SONAR_TOKEN $IMAGE sh -c "mvn -B -q test-compile org.sonarsource.scanner.maven:sonar-maven-plugin:3.11.0.3922:sonar -Dsonar.host.url=$SONAR_URL -Dsonar.token=\\$SONAR_TOKEN -Dsonar.projectKey=$SONAR_KEY -Dsonar.qualitygate.wait=true"
+                        docker run --rm --network infra_default \
+                        -e SONAR_TOKEN $IMAGE \
+                        sh -c "mvn -B -q test-compile org.sonarsource.scanner.maven:sonar-maven-plugin:3.11.0.3922:sonar -Dsonar.host.url=$SONAR_URL -Dsonar.token=\\$SONAR_TOKEN -Dsonar.projectKey=$SONAR_KEY -Dsonar.qualitygate.wait=true"
                     '''
                 }
             }
@@ -56,10 +83,10 @@ pipeline {
 
     post {
         always {
-            junit allowEmptyResults: true, testResults: 'reports/*.xml'
-            archiveArtifacts artifacts: 'traces/**', allowEmptyArchive: true
-            sh 'docker rm -f $CONTAINER || true'
-            sh 'docker rmi $IMAGE || true'
+            sh '''
+                kubectl delete job ${K8S_JOB_NAME} -n qa-automation --ignore-not-found=true || true
+                docker rmi $IMAGE || true
+            '''
         }
     }
 }
