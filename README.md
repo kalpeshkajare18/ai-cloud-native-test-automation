@@ -17,3 +17,4 @@ docker build -t qa-tests .
 docker run --rm qa-tests
 ```
 Automatic Jenkins CI trigger test
+Testing Jenkins and Grafana monitoring
