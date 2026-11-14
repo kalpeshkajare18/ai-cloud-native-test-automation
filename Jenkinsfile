@@ -76,11 +76,15 @@ EOF
                 '''
             }
         }
-        stage('Publish JUnit reports') {
-            steps {
-                junit 'k8s-reports/**/*.xml'
-            }
-        }
+stage('Publish JUnit reports') {
+    steps {
+        sh '''
+            mkdir -p k8s-reports
+            cp /var/jenkins_home/k8s-reports/${BUILD_NUMBER}/surefire-reports/*.xml k8s-reports/
+        '''
+        junit 'k8s-reports/*.xml'
+    }
+}
 
         stage('SonarQube analysis + quality gate') {
             steps {
