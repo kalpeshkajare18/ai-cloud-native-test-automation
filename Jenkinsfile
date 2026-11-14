@@ -56,7 +56,9 @@ spec:
               mountPath: /app/target
       volumes:
         - name: test-reports
-          emptyDir: {}
+          hostPath:
+            path: /var/lib/docker/volumes/infra_jenkins_home/_data/k8s-reports/${BUILD_NUMBER}
+            type: DirectoryOrCreate
 EOF
 
                     kubectl apply -f playwright-job.yaml
@@ -72,6 +74,11 @@ EOF
                 sh '''
                     kubectl logs job/${K8S_JOB_NAME} -n qa-automation
                 '''
+            }
+        }
+        stage('Publish JUnit reports') {
+            steps {
+                junit 'k8s-reports/**/*.xml'
             }
         }
 
